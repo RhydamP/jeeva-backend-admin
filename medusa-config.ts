@@ -17,5 +17,16 @@ module.exports = defineConfig({
     {
       resolve: "./src/modules/marketplace",
     },
+    {
+      resolve: "./src/modules/blog",
+    },
   ],
+  plugins: [
+    {
+      resolve: 'medusa-plugin-blogger',
+      options: {
+        enableUI: true,
+      },
+    },
+  ]
 })

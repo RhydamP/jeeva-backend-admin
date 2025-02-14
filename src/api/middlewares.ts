@@ -1,19 +1,19 @@
-import { 
+  import { 
     defineMiddlewares,
     authenticate,
   } from "@medusajs/framework/http"
-  
+  import multer from "multer"
+  const upload = multer({ storage: multer.memoryStorage() })
+   
   export default defineMiddlewares({
     routes: [
       {
-        matcher: "/vendors",
-        method: "POST",
+        matcher: "/admin/blogs*",
         middlewares: [
-          authenticate("vendor", ["session", "bearer"], {
-            allowUnregistered: true,
-          }),
+          authenticate("user", ["session", "bearer", "api-key"]),
+          upload.array("files"),
         ],
-      },
+      },  
       {
         matcher: "/vendors/*",
         middlewares: [
