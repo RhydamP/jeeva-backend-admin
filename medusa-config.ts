@@ -22,11 +22,5 @@ module.exports = defineConfig({
     },
   ],
   plugins: [
-    {
-      resolve: 'medusa-plugin-blogger',
-      options: {
-        enableUI: true,
-      },
-    },
   ]
 })
