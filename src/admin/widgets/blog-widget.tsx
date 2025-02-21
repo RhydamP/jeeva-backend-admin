@@ -4,6 +4,7 @@ import { useState } from "react";
 import CreateBlog from "../util/createBlog";
 import UpdateBlog from "../util/updateBlog";
 import DeleteBlog from "../util/deleteBlog";
+import { WidgetConfig, defineWidgetConfig } from "@medusajs/admin-sdk";
 
 
 const BlogContent = () => {
@@ -53,5 +54,10 @@ const BlogContent = () => {
         </Container>
     );
 };
+
+export const config: WidgetConfig = defineWidgetConfig({
+    zone: ["product.list.after"],
+  });
+
 
 export default BlogContent;
