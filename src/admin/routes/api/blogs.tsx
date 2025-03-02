@@ -24,8 +24,6 @@ export const BlogGet =(pagination: { limit: number; offset: number }): [BlogResp
 }
 
 
-
-
 export const useCreateBlog = () => {
   return useMutation({
       mutationFn: async (formData: FormData) => {
