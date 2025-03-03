@@ -42,7 +42,7 @@ export const PUT = async (
     res: MedusaResponse
   ) => {
     try {
-    const blogModuleService = req.scope.resolve(BLOG_MODULE)
+    const blogModuleService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
     const { id } = req.params
 
     const files = req.files as Express.Multer.File[]
@@ -125,7 +125,7 @@ export const PUT = async (
   ) => {
     try {
 
-    const blogModuleService = req.scope.resolve(BLOG_MODULE)
+    const blogModuleService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
     const { id } = req.params
   
    
