@@ -43,3 +43,4 @@ export const GET = async (
     res.status(500).json({ message: "An error occurred while fetching the blogs" })
   }
 }
+export const AUTHENTICATE = false;

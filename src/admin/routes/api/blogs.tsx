@@ -10,8 +10,8 @@ type BlogResponse = {
     offset: number;
 }  
 
-export const BlogGet =(pagination: { limit: number; offset: number }): [BlogResponse | undefined, boolean] => {
-  const { data, isLoading } = useQuery<BlogResponse>({
+export const BlogGet =(pagination: { limit: number; offset: number }) => {
+  const { data, isLoading, refetch } = useQuery<BlogResponse>({
     queryFn: () => sdk.client.fetch(`/admin/blogs`, {
       query: {
         limit: pagination.limit,
@@ -20,7 +20,7 @@ export const BlogGet =(pagination: { limit: number; offset: number }): [BlogResp
     }),
     queryKey: ["blogs", pagination.limit, pagination.offset],
   })
-  return [data, isLoading];
+  return {data, isLoading, refetch };
 }
 
 
