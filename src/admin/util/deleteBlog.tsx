@@ -1,17 +1,28 @@
 import { Minus } from "@medusajs/icons"
-import { Button } from "@medusajs/ui";
+import { Button, toast } from "@medusajs/ui";
 import { Prompt } from "@medusajs/ui";
 import { useDeleteBlog } from "../routes/api/blogs";
 
 
-const DeleteBlog = ({ id, onClose }: { id: string, onClose: () => void }) => {
+const DeleteBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void, refetch: () => void }) => {
 
     const deleteBlogMutation = useDeleteBlog();
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        deleteBlogMutation.mutate(id, { onSuccess: () => onClose() });
+    
+        deleteBlogMutation.mutate(id, {
+            onSuccess: () => {
+                toast.success("Blog deleted successfully!");
+                onClose(); 
+                refetch(); 
+            },
+            onError: (error : any) => {
+                const errorMessage = error.response?.data?.error || "An error occurred while deleting.";
+                toast.error(errorMessage);
+            }
+        });
     };
+    
 
 
     return (

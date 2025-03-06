@@ -1,4 +1,4 @@
-import { 
+import {
   defineMiddlewares,
   authenticate,
   MedusaNextFunction,
@@ -18,8 +18,8 @@ export default defineMiddlewares({
       matcher: "/admin/blogs*",
       middlewares: [
         (
-          req: MedusaRequest, 
-          res: MedusaResponse, 
+          req: MedusaRequest,
+          res: MedusaResponse,
           next: MedusaNextFunction
         ) => {
           const configModule: ConfigModule = req.scope.resolve("configModule")
@@ -30,10 +30,11 @@ export default defineMiddlewares({
             credentials: true,
           })(req, res, next)
         },
-        authenticate("user", ["session", "bearer", "api-key"]),
+        //authenticate("user", ["session", "bearer", "api-key"]),
         upload.array("files"),
       ],
-    },  
+    },
+
     {
       matcher: "/vendors/*",
       middlewares: [
