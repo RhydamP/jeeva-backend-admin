@@ -1,11 +1,11 @@
-import { Container, FocusModal, Heading, Input, ProgressTabs, Table, Textarea } from "@medusajs/ui";
+import { FocusModal, Heading, Input, ProgressTabs, toast, Textarea } from "@medusajs/ui";
 import { useCreateBlog } from "../routes/api/blogs";
 import { useState } from "react";
 import { PlusMini } from "@medusajs/icons";
 import { Button } from "@medusajs/ui";
 
 
-const CreateBlog = () => {
+const CreateBlog = ({ refetch }: any) => {
     const [formData, setFormData] = useState<{
         author: string;
         tags: string[];
@@ -46,14 +46,16 @@ const CreateBlog = () => {
         external_links: {},
     });
 
-
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const createBlogMutation = useCreateBlog();
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+
+    const handleChange = (e: { target: { name: any; value: any; }; }) => {
         const { name, value } = e.target;
 
         setFormData((prevFormData) => {
             if (name === "tags") {
-                const tagsArray = value ? value.split(",").map(tag => tag.trim()) : [];
+                const tagsArray = value ? value.split(",").map((tag: string) => tag.trim()) : [];
                 return { ...prevFormData, tags: tagsArray };
             }
 
@@ -79,20 +81,19 @@ const CreateBlog = () => {
         });
     };
 
-
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
             setFormData((prev) => ({
                 ...prev,
-                files: Array.from(files),
+                files: [...prev.files, ...Array.from(files) as File[]],
             }));
         }
     };
 
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsLoading(true);
 
         const formDataToSend = new FormData();
 
@@ -106,25 +107,42 @@ const CreateBlog = () => {
             }
         });
 
-        createBlogMutation.mutate(formDataToSend);
+        try {
+            await createBlogMutation.mutateAsync(formDataToSend);
+            toast.success("Blog created successfully!");
+            setIsModalOpen(false);
+            refetch();
+        } catch (error: any) {
+            const errorMsg = error.message || "An unexpected error occurred.";
+            toast.error(errorMsg);
+        } finally {
+            setIsLoading(false);
+        }
+
     };
 
-
     return (
-        <div className="flex justify-between mb-5">
-            <Heading>Blog here</Heading>
-            <FocusModal>
-                <FocusModal.Trigger asChild>
-                    <Button variant="secondary" className="w-30 h-10">
-                        Add Blog <PlusMini />
-                    </Button>
-                </FocusModal.Trigger>
-                <FocusModal.Content>
-                    <FocusModal.Header>
-                        <FocusModal.Title>Add a New Blog</FocusModal.Title>
-                        <Button onClick={handleSubmit}>Save</Button>
-                    </FocusModal.Header>
-                    <FocusModal.Body>
+        <div className="flex flex-col gap-4">
+            <div className="flex justify-between mb-5">
+                <Heading>Blog here</Heading>
+                <FocusModal open={isModalOpen} onOpenChange={setIsModalOpen}>
+                    <FocusModal.Trigger asChild>
+                        <Button variant="secondary" className="w-30 h-10"  onClick={() => setIsModalOpen(true)}>
+                            Add Blog <PlusMini />
+                        </Button>
+                    </FocusModal.Trigger>
+                    <FocusModal.Content>
+                        <FocusModal.Header>
+                            <FocusModal.Title>Add a New Blog</FocusModal.Title>
+                            <Button onClick={handleSubmit} disabled={isLoading} className="relative flex items-center justify-center">
+                                {isLoading ? (
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    "Save"
+                                )}
+                            </Button>
+                        </FocusModal.Header>
+                        <FocusModal.Body>
                         <ProgressTabs defaultValue="general">
                             <ProgressTabs.List>
                                 <ProgressTabs.Trigger value="general">General</ProgressTabs.Trigger>
@@ -162,7 +180,7 @@ const CreateBlog = () => {
                             <ProgressTabs.Content value="Images_Upload">
                                 <div className="flex flex-col gap-6 py-12 px-12 m-w-8xl">
                                     <label className=" text-xl font-medium">Thumbnail Images</label>
-                                    <Input type="file" className="w-[60vw] h-[6vh]" onChange={(e) => handleFileUpload(e)} />
+                                    <Input type="file" className="w-[60vw] h-[6vh]" multiple onChange={(e) => handleFileUpload(e)} />
 
                                 </div>
                             </ProgressTabs.Content>
@@ -194,10 +212,11 @@ const CreateBlog = () => {
                             </ProgressTabs.Content>
                         </ProgressTabs>
                     </FocusModal.Body>
-                </FocusModal.Content>
-            </FocusModal>
+                    </FocusModal.Content>
+                </FocusModal>
+            </div>
         </div>
-    )
-}
+    );
+};
 
 export default CreateBlog;

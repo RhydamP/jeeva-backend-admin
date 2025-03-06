@@ -1,5 +1,5 @@
-import { Container, FocusModal, Heading, Input, ProgressTabs, Table, Textarea } from "@medusajs/ui";
-import { BlogGet, useCreateBlog } from "../routes/api/blogs";
+import { Container, Table } from "@medusajs/ui";
+import { BlogGet } from "../routes/api/blogs";
 import { useState } from "react";
 import CreateBlog from "../util/createBlog";
 import UpdateBlog from "../util/updateBlog";
@@ -11,14 +11,14 @@ const BlogContent = () => {
     const [currentPage, setCurrentPage] = useState(0);
     const limit = 20;
     const offset = currentPage * limit;
-    const [data, isLoading] = BlogGet({ limit, offset });
+    const { data, isLoading, refetch } = BlogGet({ limit, offset });
     const [selectedBlogId, setSelectedBlogId] = useState<string | null>(null);
 
 
 
     return (
         <Container>
-            <CreateBlog/>
+            <CreateBlog refetch={refetch}/>
             {selectedBlogId && <UpdateBlog id={selectedBlogId} onClose={() => setSelectedBlogId(null)} />}
             {isLoading ? (
                 <p>Loading...</p>
@@ -42,7 +42,7 @@ const BlogContent = () => {
                                 <Table.Cell className=" cursor-pointer"
                                 > {blog.id && <UpdateBlog id={blog.id} onClose={() => setSelectedBlogId(null)} />}</Table.Cell>
                                 <Table.Cell className=" cursor-pointer"
-                                > {blog.id && <DeleteBlog id={blog.id} onClose={() => setSelectedBlogId(null)} />}</Table.Cell>
+                                > {blog.id && <DeleteBlog id={blog.id} onClose={() => setSelectedBlogId(null)} refetch={refetch} />}</Table.Cell>
                             </Table.Row>
 
                         ))}
