@@ -3,6 +3,8 @@ import { sdk } from "../../lib/sdk"
 import BlogRequest from "../../../workflows/blog/types"
 
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+
 type BlogResponse = {
     blogs: Array<BlogRequest>;
     count: number;
@@ -27,7 +29,7 @@ export const BlogGet =(pagination: { limit: number; offset: number }) => {
 export const useCreateBlog = () => {
   return useMutation({
       mutationFn: async (formData: FormData) => {
-          const response = await fetch("http://localhost:9000/admin/blogs", {
+          const response = await fetch(`${BACKEND_URL}/admin/blogs`, {
               method: "POST",
               body: formData,
           });
@@ -45,7 +47,7 @@ export const useCreateBlog = () => {
 export const GetBlogById = () => {
   return useMutation({
     mutationFn: async ( id : { id: string}) => {
-      const response = await fetch(`http://localhost:9000/admin/blogs/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/admin/blogs/${id}`, {
         method: "GET",
         credentials: "include",
       });
@@ -62,7 +64,7 @@ export const GetBlogById = () => {
 export const useUpdateBlog = () => {
   return useMutation({
     mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
-      const response = await fetch(`http://localhost:9000/admin/blogs/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/admin/blogs/${id}`, {
         method: "PUT",
         body: formData,
         credentials: "include",
@@ -81,7 +83,7 @@ export const useUpdateBlog = () => {
 export const useDeleteBlog = () => {
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`http://localhost:9000/admin/blogs/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/admin/blogs/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
