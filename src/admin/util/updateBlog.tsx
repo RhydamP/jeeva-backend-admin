@@ -5,6 +5,9 @@ import { ArrowLongUp } from "@medusajs/icons";
 import { Button } from "@medusajs/ui";
 import { GetBlogById } from "../routes/api/blogs";
 
+type ImageKey = 'thumbnail_image1' | 'thumbnail_image2' | 'thumbnail_image3';
+
+
 const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void, refetch: () => void }) => {
     const initialFormState = {
         author: "",
@@ -49,13 +52,16 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
     }>(initialFormState);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modifiedFields, setModifiedFields] = useState<{ [key: string]: boolean }>({});
+    const [removedImages, setRemovedImages] = useState<ImageKey[]>([]);
+
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [activeTab, setActiveTab] = useState("general");
-    const [existingImages, setExistingImages] = useState({
+    const [existingImages, setExistingImages] = useState<{ [key: string]: string }>({
         thumbnail_image1: "",
         thumbnail_image2: "",
-        thumbnail_image3: ""
+        thumbnail_image3: "",
     });
     const [newImages, setNewImages] = useState<File[]>([]);
 
@@ -79,6 +85,9 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
 
             setFormData({
                 ...blogData.blog,
+                tags: typeof blogData.blog.tags === "string"
+                    ? JSON.parse(blogData.blog.tags)
+                    : blogData.blog.tags,
                 files: [],
                 published_date: blogData.published_date || null,
                 updated_date: blogData.updated_date || null,
@@ -95,19 +104,19 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
     };
 
     useEffect(() => {
-        if (isModalOpen) {
+        if (isModalOpen && id) {
             fetchBlogData();
         }
-    }, [isModalOpen, id]);
+    }, [isModalOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
 
         setFormData((prevFormData) => {
             if (name === "tags") {
-                const tagsArray = value ? value.split(",").map(tag => tag.trim()) : [];
+                const tagsArray = value.split(",").map(tag => tag.trim()).filter(Boolean);
                 return { ...prevFormData, tags: tagsArray };
-            }
+              }
             else if (name === "description") {
                 return { ...prevFormData, description: { content: value } };
             }
@@ -128,24 +137,41 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
         });
     };
 
-    const removeFile = (imageKey: any) => {
-        const updatedImages : any = { ...existingImages };
-        delete updatedImages[imageKey] ; 
-        setExistingImages(updatedImages);
+    const removeExistingImage = (imageKey: ImageKey) => {
+        if (existingImages[imageKey]) {
+            setRemovedImages((prev) => [...prev, imageKey]);
+
+            // Clear the existing image slot
+            setExistingImages((prevImages) => ({
+                ...prevImages,
+                [imageKey]: ""  // Keeps the key but removes the image
+            }));
+        }
     };
-    
+
+
+
     const removeNewFile = (indexToRemove: number) => {
         setNewImages(newImages.filter((_, index) => index !== indexToRemove));
     };
-    
+
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files && files.length > 0) {
-            setNewImages([...newImages, ...Array.from(files)]);
+            setNewImages((prev) => {
+                const uniqueFiles = Array.from(files).filter(
+                    (file) => !prev.some((existing) => existing.name === file.name)
+                );
+                return [...prev, ...uniqueFiles];
+            });
         }
     };
-    
+
+
+
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,25 +179,29 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
 
         const formDataToSend = new FormData();
 
+        // Append non-file fields
         Object.entries(formData).forEach(([key, value]) => {
-            if (key === "files" && Array.isArray(value)) {
-                if (value.length > 0) {
-                    value.forEach((file) => formDataToSend.append("files", file));
-                } else {
-                    if (existingImages.thumbnail_image1) {
-                        formDataToSend.append("thumbnail_image1", existingImages.thumbnail_image1);
-                    }
-                    if (existingImages.thumbnail_image2) {
-                        formDataToSend.append("thumbnail_image2", existingImages.thumbnail_image2);
-                    }
-                    if (existingImages.thumbnail_image3) {
-                        formDataToSend.append("thumbnail_image3", existingImages.thumbnail_image3);
-                    }
-                }
+            if (key === "files") return;
+            if (key === "tags" && Array.isArray(value)) {
+                formDataToSend.append(key, JSON.stringify(value));
             } else if (typeof value === "object" && value !== null) {
                 formDataToSend.append(key, JSON.stringify(value));
             } else if (value !== null && value !== undefined) {
                 formDataToSend.append(key, value.toString());
+            }
+        });
+
+        if (removedImages.length > 0) {
+            formDataToSend.append("removed_images", JSON.stringify(removedImages));
+        }
+
+
+        const imageKeys: ImageKey[] = ['thumbnail_image1', 'thumbnail_image2', 'thumbnail_image3'];
+        const availableSlots = imageKeys.filter((slot) => !existingImages[slot]);
+
+        newImages.forEach((file, index) => {
+            if (index < availableSlots.length) {
+                formDataToSend.append(availableSlots[index], file);
             }
         });
 
@@ -182,21 +212,34 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
             refetch();
             onClose();
         } catch (error: any) {
-            const errorMsg = error.message || "Failed to update blog";
-            toast.error(errorMsg);
+            toast.error(error.message || "Failed to update blog");
         } finally {
             setIsLoading(false);
         }
     };
 
+
+
+
+    // For removing files from formData.files array (with numeric index)
+    const removeFile = (index: number) => {
+        setFormData(prevData => ({
+            ...prevData,
+            files: prevData.files.filter((_, i) => i !== index)
+        }));
+    };
+
+
+
     const handleTabChange = (value: string) => {
         setActiveTab(value);
     };
 
-    // Helper to get value for tags display
     const getTagsString = () => {
         return Array.isArray(formData.tags) ? formData.tags.join(", ") : "";
-    };
+      };
+      
+      
 
     return (
         <div className="flex justify-between">
@@ -313,81 +356,81 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
                                         />
                                         {(existingImages.thumbnail_image1 || existingImages.thumbnail_image2 || existingImages.thumbnail_image3) && (
                                             <div className="mt-6">
-                                            <p className="font-medium mb-3">Current Images:</p>
-                                            <div className="flex gap-4 flex-wrap">
-                                                {/* Display Existing Images */}
-                                                {existingImages.thumbnail_image1 && (
-                                                    <div className="relative">
-                                                        <img
-                                                            src={existingImages.thumbnail_image1}
-                                                            alt="Thumbnail 1"
-                                                            className="h-24 w-auto object-cover rounded-md border"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeFile('thumbnail_image1')}
-                                                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
-                                                            aria-label="Remove existing image"
-                                                        >
-                                                            &times;
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {existingImages.thumbnail_image2 && (
-                                                    <div className="relative">
-                                                        <img
-                                                            src={existingImages.thumbnail_image2}
-                                                            alt="Thumbnail 2"
-                                                            className="h-24 w-auto object-cover rounded-md border"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeFile('thumbnail_image2')}
-                                                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
-                                                            aria-label="Remove existing image"
-                                                        >
-                                                            &times;
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {existingImages.thumbnail_image3 && (
-                                                    <div className="relative">
-                                                        <img
-                                                            src={existingImages.thumbnail_image3}
-                                                            alt="Thumbnail 3"
-                                                            className="h-24 w-auto object-cover rounded-md border"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeFile('thumbnail_image3')}
-                                                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
-                                                            aria-label="Remove existing image"
-                                                        >
-                                                            &times;
-                                                        </button>
-                                                    </div>
-                                                )}
-                                                {/* Display New Images */}
-                                                {newImages.map((file, index) => (
-                                                    <div key={index} className="relative">
-                                                        <img
-                                                            src={URL.createObjectURL(file)}
-                                                            alt={`Thumbnail ${index + 4}`}
-                                                            className="h-24 w-auto object-cover rounded-md border"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removeNewFile(index)}
-                                                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
-                                                            aria-label="Remove new image"
-                                                        >
-                                                            &times;
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                                <p className="font-medium mb-3">Current Images:</p>
+                                                <div className="flex gap-4 flex-wrap">
+                                                    {/* Display Existing Images */}
+                                                    {existingImages.thumbnail_image1 && (
+                                                        <div className="relative">
+                                                            <img
+                                                                src={existingImages.thumbnail_image1}
+                                                                alt="Thumbnail 1"
+                                                                className="h-24 w-auto object-cover rounded-md border"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeExistingImage('thumbnail_image1')}
+                                                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                                                                aria-label="Remove existing image"
+                                                            >
+                                                                &times;
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {existingImages.thumbnail_image2 && (
+                                                        <div className="relative">
+                                                            <img
+                                                                src={existingImages.thumbnail_image2}
+                                                                alt="Thumbnail 2"
+                                                                className="h-24 w-auto object-cover rounded-md border"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeExistingImage('thumbnail_image2')}
+                                                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                                                                aria-label="Remove existing image"
+                                                            >
+                                                                &times;
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {existingImages.thumbnail_image3 && (
+                                                        <div className="relative">
+                                                            <img
+                                                                src={existingImages.thumbnail_image3}
+                                                                alt="Thumbnail 3"
+                                                                className="h-24 w-auto object-cover rounded-md border"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeExistingImage('thumbnail_image3')}
+                                                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                                                                aria-label="Remove existing image"
+                                                            >
+                                                                &times;
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    {/* Display New Images */}
+                                                    {newImages.map((file, index) => (
+                                                        <div key={index} className="relative">
+                                                            <img
+                                                                src={URL.createObjectURL(file)}
+                                                                alt={`Thumbnail ${index + 4}`}
+                                                                className="h-24 w-auto object-cover rounded-md border"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeNewFile(index)}
+                                                                className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                                                                aria-label="Remove new image"
+                                                            >
+                                                                &times;
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                        
+
                                         )}
                                         {/* Display current files */}
                                         {formData.files.length > 0 && (
