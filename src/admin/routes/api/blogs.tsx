@@ -46,7 +46,7 @@ export const useCreateBlog = () => {
 
 export const GetBlogById = () => {
   return useMutation({
-    mutationFn: async ( id : { id: string}) => {
+    mutationFn: async ( id : string) => {
       const response = await fetch(`${BACKEND_URL}/admin/blogs/${id}`, {
         method: "GET",
         credentials: "include",
