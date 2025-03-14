@@ -20,4 +20,5 @@ export default interface BlogRequest {
     alt_tags?: Record<string, unknown>;
     internal_links?: Record<string, unknown>;
     external_links?: Record<string, unknown>;
+    removed_images?: string;
   }

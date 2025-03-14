@@ -31,7 +31,11 @@ export default defineMiddlewares({
           })(req, res, next)
         },
         //authenticate("user", ["session", "bearer", "api-key"]),
-        upload.array("files"),
+        upload.fields([
+          { name: 'thumbnail_image1', maxCount: 1 },
+          { name: 'thumbnail_image2', maxCount: 1 },
+          { name: 'thumbnail_image3', maxCount: 1 }
+        ]),
       ],
     },
 

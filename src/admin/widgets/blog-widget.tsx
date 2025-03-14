@@ -19,7 +19,7 @@ const BlogContent = () => {
     return (
         <Container>
             <CreateBlog refetch={refetch}/>
-            {selectedBlogId && <UpdateBlog id={selectedBlogId} onClose={() => setSelectedBlogId(null)} />}
+            {selectedBlogId && <UpdateBlog id={selectedBlogId} onClose={() => setSelectedBlogId(null)} refetch={refetch}/>}
             {isLoading ? (
                 <p>Loading...</p>
             ) : data?.blogs ? (
@@ -40,7 +40,7 @@ const BlogContent = () => {
                                 <Table.Cell>{blog.author}</Table.Cell>
                                 <Table.Cell>{blog.seo_title}</Table.Cell>
                                 <Table.Cell className=" cursor-pointer"
-                                > {blog.id && <UpdateBlog id={blog.id} onClose={() => setSelectedBlogId(null)} />}</Table.Cell>
+                                > {blog.id && <UpdateBlog id={blog.id} onClose={() => setSelectedBlogId(null)} refetch={refetch}/>}</Table.Cell>
                                 <Table.Cell className=" cursor-pointer"
                                 > {blog.id && <DeleteBlog id={blog.id} onClose={() => setSelectedBlogId(null)} refetch={refetch} />}</Table.Cell>
                             </Table.Row>
