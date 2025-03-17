@@ -11,7 +11,8 @@ import Blogrequest from "../../../workflows/blog/types"
 import multer from "multer";
   
 
- 
+type ImageKey = 'thumbnail_image1' | 'thumbnail_image2' | 'thumbnail_image3';
+
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
@@ -61,7 +62,33 @@ export const POST = async (
   try {
     const blogModuleService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
 
-    const files = req.files as Express.Multer.File[]
+    // Cast req.files to an object with the expected keys
+    const filesObj = req.files as {
+      thumbnail_image1?: Express.Multer.File[]
+      thumbnail_image2?: Express.Multer.File[]
+      thumbnail_image3?: Express.Multer.File[]
+    }
+
+    // Build an array mapping each expected field to its file (if provided)
+    const fileFields: Array<{ field: ImageKey; file: Express.Multer.File }> = []
+    if (filesObj.thumbnail_image1 && filesObj.thumbnail_image1.length > 0) {
+      fileFields.push({ field: 'thumbnail_image1', file: filesObj.thumbnail_image1[0] })
+    }
+    if (filesObj.thumbnail_image2 && filesObj.thumbnail_image2.length > 0) {
+      fileFields.push({ field: 'thumbnail_image2', file: filesObj.thumbnail_image2[0] })
+    }
+    if (filesObj.thumbnail_image3 && filesObj.thumbnail_image3.length > 0) {
+      fileFields.push({ field: 'thumbnail_image3', file: filesObj.thumbnail_image3[0] })
+    }
+
+    // Throw an error if no files were uploaded
+    if (fileFields.length === 0) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "No files were uploaded"
+      )
+    }
+
     const {
       author,
       seo_title,
@@ -78,21 +105,14 @@ export const POST = async (
       canonical_url,
       alt_tags,
       internal_links,
-      external_links
+      external_links,
+      tags
     } = req.body
-    
-    console.log(req.body);
 
-    if (!files?.length) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "No files were uploaded"
-      )
-    }
-
+    // Upload files using your workflow
     const { result } = await uploadFilesWorkflow(req.scope).run({
       input: {
-        files: files.map((file) => ({
+        files: fileFields.map(({ file }) => ({
           filename: file.originalname,
           mimeType: file.mimetype,
           content: file.buffer.toString("binary"),
@@ -101,9 +121,23 @@ export const POST = async (
       },
     })
 
-    const uploadedTags = req.body.tags ? req.body.tags?.split(',') : [];;
-    const uploadedImages = result.map(file => file.url)
+    // Create an object to store the URLs based on the thumbnail keys.
+    const uploadedImages: Record<ImageKey, string | null> = {
+      thumbnail_image1: null,
+      thumbnail_image2: null,
+      thumbnail_image3: null,
+    }
 
+    // Map each upload result back to its corresponding field
+    fileFields.forEach((item, idx) => {
+      if (result[idx] && result[idx].url) {
+        uploadedImages[item.field] = result[idx].url
+      }
+    })
+
+    const uploadedTags = tags ? tags.split(',') : []
+
+    // Create the blog entry with all provided fields and the uploaded image URLs.
     const blog = await blogModuleService.createBlogs({
       author: author || '',
       tags: uploadedTags,
@@ -115,9 +149,9 @@ export const POST = async (
       subtitle: subtitle || '',
       description: description || '',
       draft: draft === 'true',
-      thumbnail_image1: uploadedImages[0] || null,
-      thumbnail_image2: uploadedImages[1] || null,
-      thumbnail_image3: uploadedImages[2] || null,
+      thumbnail_image1: uploadedImages.thumbnail_image1,
+      thumbnail_image2: uploadedImages.thumbnail_image2,
+      thumbnail_image3: uploadedImages.thumbnail_image3,
       published_date: published_date || null,
       updated_date: updated_date || null,
       social_media_meta: social_media_meta || null,
@@ -132,4 +166,5 @@ export const POST = async (
     res.status(400).json({ error: error.message })
   }
 }
+
 

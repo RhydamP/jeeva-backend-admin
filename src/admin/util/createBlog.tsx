@@ -107,12 +107,19 @@ const CreateBlog = ({ refetch }: any) => {
         const formDataToSend = new FormData();
 
         Object.entries(formData).forEach(([key, value]) => {
-            if (key === "files" && Array.isArray(value)) {
-                value.forEach((file) => formDataToSend.append("files", file));
-            } else if (typeof value === "object" && value !== null) {
+            if (key === "files" && Array.isArray(value)) return;
+            if (typeof value === "object" && value !== null) {
                 formDataToSend.append(key, JSON.stringify(value));
             } else if (value !== null && value !== undefined) {
                 formDataToSend.append(key, value.toString());
+            }
+        });
+
+        // Map the uploaded files to the appropriate thumbnail keys
+        const thumbnailKeys = ["thumbnail_image1", "thumbnail_image2", "thumbnail_image3"];
+        formData.files.forEach((file, index) => {
+            if (index < thumbnailKeys.length) {
+                formDataToSend.append(thumbnailKeys[index], file);
             }
         });
 
