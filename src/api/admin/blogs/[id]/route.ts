@@ -15,7 +15,7 @@ export const GET = async (
 
   const queryOptions = {
     entity: "blog",
-    fields: ['*'], // specify the fields you want to retrieve
+    fields: ['*'],
   }
 
   try {
@@ -66,7 +66,8 @@ export const PUT = async (
       alt_tags,
       internal_links,
       external_links,
-      removed_images
+      removed_images,
+      tags
     } = req.body;
 
     // Log incoming data for debugging (consider removing or reducing logging in production)
@@ -131,9 +132,21 @@ export const PUT = async (
       }
     }
 
-    // Build the final images object.
-    // If a field is marked as removed, set it to null.
-    // Otherwise, use the newly uploaded image if provided; if not, fall back to the current blog image.
+    // Parse and update tags only if they are provided and different from current
+    let parsedTags = currentBlog.tags;
+    if (req.body.tags) {
+      const incomingTags = Array.isArray(req.body.tags)
+        ? req.body.tags
+        : req.body.tags.split(",").map((tag: string) => tag.trim());
+
+      // Update only if the tags are different
+      if (JSON.stringify(incomingTags) !== JSON.stringify(currentBlog.tags)) {
+        parsedTags = incomingTags;
+      }
+    }
+
+
+
     const finalImages: Record<ImageKey, string | null> = {
       thumbnail_image1: parsedRemovedImages.includes("thumbnail_image1")
         ? null
@@ -146,11 +159,10 @@ export const PUT = async (
         : (uploadedImages.thumbnail_image3 || currentBlog.thumbnail_image3),
     };
 
-    // Prepare update payload.
     const updatedData = {
       id,
       author: author || currentBlog.author,
-      tags: req.body.tags ? req.body.tags.split(",") : currentBlog.tags,
+      tags: parsedTags,
       seo_title: seo_title || currentBlog.seo_title,
       seo_keywords: seo_keywords || currentBlog.seo_keywords,
       seo_description: seo_description || currentBlog.seo_description,
@@ -179,19 +191,19 @@ export const PUT = async (
   }
 };
 
-  export const DELETE = async (
-    req: AuthenticatedMedusaRequest<BlogRequest>,
-    res: MedusaResponse
-  ) => {
-    try {
+export const DELETE = async (
+  req: AuthenticatedMedusaRequest<BlogRequest>,
+  res: MedusaResponse
+) => {
+  try {
 
     const blogModuleService: BlogModuleService = req.scope.resolve(BLOG_MODULE)
     const { id } = req.params
-  
-   
-      await blogModuleService.deleteBlogs(id)
-      res.status(200).json({ message: "Blog post deleted successfully" })
-    } catch (error) {
-      res.status(400).json({ error: error.message })
-    }
+
+
+    await blogModuleService.deleteBlogs(id)
+    res.status(200).json({ message: "Blog post deleted successfully" })
+  } catch (error) {
+    res.status(400).json({ error: error.message })
   }
+}

@@ -54,7 +54,7 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modifiedFields, setModifiedFields] = useState<{ [key: string]: boolean }>({});
     const [removedImages, setRemovedImages] = useState<ImageKey[]>([]);
-
+    const [tagInput, setTagInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [activeTab, setActiveTab] = useState("general");
@@ -69,13 +69,32 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
     const updateBlogMutation = useUpdateBlog();
     const getBlogByIdMutation = GetBlogById();
 
-    // Fetch blog data when modal opens
     const fetchBlogData = async () => {
         if (!id) return;
 
         setIsFetching(true);
         try {
             const blogData = await getBlogByIdMutation.mutateAsync(id);
+
+            const parsedTags: string[] = Array.isArray(blogData.blog.tags)
+            ? blogData.blog.tags.map((tag: string) => tag.replace(/[\[\]"]+/g, "").trim()).filter(Boolean)
+            : blogData.blog.tags
+                .replace(/[\[\]"]+/g, "")
+                .split(",")
+                .map((tag: string) => tag.trim())
+                .filter(Boolean);
+
+            let parsedDescription = { content: "" };
+            if (typeof blogData.blog.description === "string") {
+                try {
+                    parsedDescription = JSON.parse(blogData.blog.description);
+                } catch (error) {
+                    console.error("Error parsing description:", error);
+                    parsedDescription = { content: blogData.blog.description || "" };
+                }
+            } else if (blogData.blog.description && typeof blogData.blog.description === "object") {
+                parsedDescription = blogData.blog.description;
+            }
 
             setExistingImages({
                 thumbnail_image1: blogData.blog.thumbnail_image1 || "",
@@ -85,15 +104,12 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
 
             setFormData({
                 ...blogData.blog,
-                tags: typeof blogData.blog.tags === "string"
-                    ? JSON.parse(blogData.blog.tags)
-                    : blogData.blog.tags,
+                tags: parsedTags,
+                description: parsedDescription,
                 files: [],
-                published_date: blogData.published_date || null,
-                updated_date: blogData.updated_date || null,
-                description: typeof blogData.description === 'string'
-                    ? JSON.parse(blogData.description)
-                    : (blogData.description || { content: "" })
+                published_date: blogData.blog.published_date || null,
+                updated_date: blogData.blog.updated_date || null,
+
             });
         } catch (error: any) {
             const errorMsg = error.message || "Failed to fetch blog data";
@@ -109,15 +125,41 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
         }
     }, [isModalOpen]);
 
+    const handleTagInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTagInput(e.target.value);
+    };
+
+    const addTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && tagInput.trim()) {
+            e.preventDefault();
+            const newTag = tagInput.trim();
+
+            // Avoid duplicate tags
+            if (!formData.tags.includes(newTag)) {
+                setFormData((prev) => ({
+                    ...prev,
+                    tags: [...prev.tags, newTag],
+                }));
+            }
+
+            setTagInput(""); // Clear input after adding
+        }
+    };
+
+
+    const removeTag = (index: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            tags: prev.tags.filter((_, i) => i !== index),
+        }));
+    };
+
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
 
         setFormData((prevFormData) => {
-            if (name === "tags") {
-                const tagsArray = value.split(",").map(tag => tag.trim()).filter(Boolean);
-                return { ...prevFormData, tags: tagsArray };
-              }
-            else if (name === "description") {
+            if (name === "description") {
                 return { ...prevFormData, description: { content: value } };
             }
             else if (name === "published_date" || name === "updated_date") {
@@ -137,6 +179,7 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
         });
     };
 
+
     const removeExistingImage = (imageKey: ImageKey) => {
         if (existingImages[imageKey]) {
             setRemovedImages((prev) => [...prev, imageKey]);
@@ -144,7 +187,7 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
             // Clear the existing image slot
             setExistingImages((prevImages) => ({
                 ...prevImages,
-                [imageKey]: ""  // Keeps the key but removes the image
+                [imageKey]: ""
             }));
         }
     };
@@ -168,23 +211,31 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
         }
     };
 
-
-
-
-
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
         const formDataToSend = new FormData();
 
+        const cleanTags = (tags: string[]) => {
+            return tags
+                .map((tag) => tag.replace(/[\[\]"]+/g, "").trim()) // Remove extra brackets and quotes
+                .filter(Boolean) // Remove empty tags
+                .join(","); // Join as comma-separated
+        };
+    
+
         // Append non-file fields
         Object.entries(formData).forEach(([key, value]) => {
             if (key === "files") return;
-            if (key === "tags" && Array.isArray(value)) {
-                formDataToSend.append(key, JSON.stringify(value));
-            } else if (typeof value === "object" && value !== null) {
+            if (key === "tags") {
+                formDataToSend.append("tags", cleanTags(value as string[]));
+                return;
+            }
+            if (key === "description" && JSON.stringify(value) === JSON.stringify(initialFormState.description)) {
+                return;
+            }
+            if (typeof value === "object" && value !== null) {
                 formDataToSend.append(key, JSON.stringify(value));
             } else if (value !== null && value !== undefined) {
                 formDataToSend.append(key, value.toString());
@@ -221,7 +272,6 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
 
 
 
-    // For removing files from formData.files array (with numeric index)
     const removeFile = (index: number) => {
         setFormData(prevData => ({
             ...prevData,
@@ -235,11 +285,7 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
         setActiveTab(value);
     };
 
-    const getTagsString = () => {
-        return Array.isArray(formData.tags) ? formData.tags.join(", ") : "";
-      };
-      
-      
+    const getTagsString = () => formData.tags.join(", ");
 
     return (
         <div className="flex justify-between">
@@ -291,16 +337,37 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
                                                 value={formData.author}
                                             />
 
-                                            <label className="block text-xl font-medium">Tags</label>
-                                            <Input
-                                                type="text"
-                                                name="tags"
-                                                className="w-[40vw] h-[5vh]"
-                                                onChange={handleChange}
-                                                placeholder="Comma separated tags"
-                                                required={true}
-                                                value={getTagsString()}
-                                            />
+                                            <label className="block text-xl font-medium mb-2">Tags</label>
+
+                                            <div className="flex flex-wrap gap-2 w-[40vw] min-h-[5vh] p-2 border border-gray-300 rounded-lg">
+                                                {formData.tags.map((tag, index) => (
+                                                    <span
+                                                        key={index}
+                                                        className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
+                                                    >
+                                                        {tag}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeTag(index)}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+
+                                                <input
+                                                    type="text"
+                                                    name="tagInput"
+                                                    className="flex-1 outline-none bg-transparent"
+                                                    placeholder="Add tags and press Enter"
+                                                    value={tagInput}
+                                                    onChange={handleTagInput}
+                                                    onKeyDown={addTag}
+                                                />
+                                            </div>
+
+
 
                                             <label className="block text-xl font-medium">Title</label>
                                             <Input
