@@ -55,9 +55,5 @@ const BlogContent = () => {
     );
 };
 
-export const config: WidgetConfig = defineWidgetConfig({
-    zone: ["product.list.after"],
-  });
-
 
 export default BlogContent;

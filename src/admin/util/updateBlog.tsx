@@ -325,7 +325,7 @@ const UpdateBlog = ({ id, onClose, refetch }: { id: string, onClose: () => void,
                                 </ProgressTabs.List>
 
                                 <ProgressTabs.Content value="general">
-                                    <div className="w-full flex flex-row items-center gap-6 justify-between px-14 py-16 space-y-4 max-w-8xl">
+                                    <div className="w-full flex flex-row items-center gap-6 justify-between px-14 py-16 space-y-4 max-w-8xl overflow-scroll-y">
                                         <div className="flex flex-col gap-3">
                                             <label className="block text-xl font-medium">Author</label>
                                             <Input
