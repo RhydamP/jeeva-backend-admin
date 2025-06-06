@@ -44,3 +44,4 @@ export const GET = async (
   }
 }
 export const AUTHENTICATE = false;
+export const CORS = false;
